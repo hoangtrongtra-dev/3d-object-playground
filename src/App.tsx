@@ -1,26 +1,10 @@
-import { useState, useCallback, useRef } from 'react';
-import { 
-  Box, 
-  CssBaseline, 
-  ThemeProvider, 
-  createTheme,
-  AppBar,
-  Toolbar,
-  Typography,
-  IconButton,
-  Drawer,
-  useMediaQuery,
-  Fab,
-  Snackbar,
-  Alert
-} from '@mui/material';
-import { 
-  Menu as MenuIcon,
-  Close as CloseIcon,
-  Settings as SettingsIcon
-} from '@mui/icons-material';
+import React, { useState, useCallback, useRef } from 'react';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { CssBaseline, Box, AppBar, Toolbar, Typography, IconButton, Drawer, useMediaQuery, Fab, Snackbar, Alert } from '@mui/material';
+import { Menu as MenuIcon, Close as CloseIcon, Settings as SettingsIcon } from '@mui/icons-material';
 import Scene3D from './components/Scene3D';
 import ControlPanel from './components/ControlPanel';
+import * as THREE from 'three';
 
 // Create a modern dark theme with better colors
 const darkTheme = createTheme({
@@ -39,9 +23,6 @@ const darkTheme = createTheme({
     background: {
       default: '#0f0f23',
       paper: '#1a1a2e',
-    },
-    surface: {
-      main: '#16213e',
     },
     text: {
       primary: '#ffffff',
@@ -92,6 +73,13 @@ const darkTheme = createTheme({
   },
 });
 
+interface LightSettings {
+  ambientIntensity: number;
+  directionalIntensity: number;
+  pointLightIntensity: number;
+  pointLightPosition: [number, number, number];
+}
+
 interface Shape {
   id: string;
   type: string;
@@ -112,7 +100,7 @@ function App() {
   const isMobile = useMediaQuery(darkTheme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [modelUrl, setModelUrl] = useState<string>();
-  const [lightSettings, setLightSettings] = useState({
+  const [lightSettings, setLightSettings] = useState<LightSettings>({
     ambientIntensity: 0.4,
     directionalIntensity: 0.8,
     pointLightIntensity: 0.5,
@@ -133,7 +121,7 @@ function App() {
     message: '',
     severity: 'info',
   });
-  const sceneRef = useRef<any>(null);
+  const sceneRef = useRef<{ scene: THREE.Scene; domElement: HTMLCanvasElement } | null>(null);
 
   const showSnackbar = useCallback((message: string, severity: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     setSnackbar({ open: true, message, severity });
@@ -159,28 +147,127 @@ function App() {
 
   const handleUploadModel = useCallback((file: File) => {
     try {
+      // Validate file type
+      const allowedTypes = ['.glb', '.gltf', '.obj'];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(fileExtension)) {
+        showSnackbar(`Unsupported file type: ${fileExtension}. Please use GLB, GLTF, or OBJ files.`, 'error');
+        return;
+      }
+      
+      // Validate file size (max 50MB)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        showSnackbar('File too large. Maximum size is 50MB.', 'error');
+        return;
+      }
+      
+      // Show loading message
+      showSnackbar(`Uploading ${file.name}...`, 'info');
+      
+      // Create object URL and set model
       const url = URL.createObjectURL(file);
       setModelUrl(url);
-      showSnackbar(`Model "${file.name}" uploaded successfully`, 'success');
+      
+      // Clean up previous model URL if exists
+      setModelUrl(prevUrl => {
+        if (prevUrl && prevUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(prevUrl);
+        }
+        return url;
+      });
+      
+      showSnackbar(`Model "${file.name}" uploaded successfully!`, 'success');
+      
+      // Log upload info
+      console.log('Model uploaded:', {
+        name: file.name,
+        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+        type: file.type || fileExtension,
+        url: url
+      });
+      
     } catch (error) {
-      showSnackbar('Failed to upload model', 'error');
+      console.error('Upload error:', error);
+      showSnackbar(`Failed to upload model: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     }
   }, [showSnackbar]);
 
   const handleExport = useCallback(() => {
     try {
-      // Implementation for GLB export
-      showSnackbar('Scene exported as GLB file', 'success');
+      if (sceneRef.current?.scene) {
+        const scene = sceneRef.current.scene;
+        const filename = `3d-scene-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.glb`;
+        
+        // Use GLTFExporter to export the scene
+        import('three/examples/jsm/exporters/GLTFExporter.js').then(({ GLTFExporter }) => {
+          const exporter = new GLTFExporter();
+          
+          exporter.parseAsync(scene, {
+            binary: true,
+            includeCustomExtensions: true,
+          }).then((result) => {
+            if (result instanceof ArrayBuffer) {
+              const blob = new Blob([result], { type: 'application/octet-stream' });
+              const url = URL.createObjectURL(blob);
+              
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = filename;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              
+              URL.revokeObjectURL(url);
+              showSnackbar(`Scene exported as ${filename}`, 'success');
+            } else {
+              showSnackbar('Export failed: Invalid result format', 'error');
+            }
+          }).catch((error) => {
+            console.error('Export error:', error);
+            showSnackbar('Failed to export scene', 'error');
+          });
+        }).catch((error) => {
+          console.error('Failed to load GLTFExporter:', error);
+          showSnackbar('Export module not available', 'error');
+        });
+      } else {
+        showSnackbar('Scene not ready for export', 'warning');
+      }
     } catch (error) {
+      console.error('Export error:', error);
       showSnackbar('Failed to export scene', 'error');
     }
   }, [showSnackbar]);
 
   const handleScreenshot = useCallback(() => {
     try {
-      // Implementation for screenshot
-      showSnackbar('Screenshot captured', 'success');
+      if (sceneRef.current) {
+        const canvas = sceneRef.current.domElement;
+        if (canvas) {
+          const filename = `3d-screenshot-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
+          
+          // Get the canvas data
+          const dataURL = canvas.toDataURL('image/png');
+          
+          // Create download link
+          const link = document.createElement('a');
+          link.href = dataURL;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          showSnackbar(`Screenshot saved as ${filename}`, 'success');
+        } else {
+          showSnackbar('Canvas not available for screenshot', 'warning');
+        }
+      } else {
+        showSnackbar('Scene not ready for screenshot', 'warning');
+      }
     } catch (error) {
+      console.error('Screenshot error:', error);
       showSnackbar('Failed to capture screenshot', 'error');
     }
   }, [showSnackbar]);
@@ -210,12 +297,92 @@ function App() {
     showSnackbar('Shape deleted', 'info');
   }, [showSnackbar]);
 
+  const handleImportScene = useCallback((sceneData: unknown) => {
+    try {
+      // Validate scene data structure
+      if (!sceneData || typeof sceneData !== 'object') {
+        throw new Error('Invalid scene data format');
+      }
+
+      // Extract scene information
+      const { scene, lightSettings: importedLightSettings, metadata } = sceneData as {
+        scene?: SceneState;
+        lightSettings?: LightSettings;
+        metadata?: unknown;
+      };
+      
+      if (scene && typeof scene === 'object') {
+        // Validate and import shapes
+        if (Array.isArray(scene.shapes)) {
+          const validatedShapes = scene.shapes.filter((shape: unknown) => {
+            return shape && 
+                   typeof shape === 'object' &&
+                   'id' in shape && typeof (shape as Shape).id === 'string' &&
+                   'type' in shape && typeof (shape as Shape).type === 'string' &&
+                   'position' in shape && Array.isArray((shape as Shape).position) && (shape as Shape).position.length === 3 &&
+                   'rotation' in shape && Array.isArray((shape as Shape).rotation) && (shape as Shape).rotation.length === 3 &&
+                   'scale' in shape && Array.isArray((shape as Shape).scale) && (shape as Shape).scale.length === 3 &&
+                   'color' in shape && typeof (shape as Shape).color === 'string';
+          });
+
+          if (validatedShapes.length > 0) {
+            setSceneState(prev => ({
+              ...prev,
+              shapes: validatedShapes,
+              selectedShapeId: scene.selectedShapeId || null,
+              cameraPosition: scene.cameraPosition || prev.cameraPosition,
+              cameraTarget: scene.cameraTarget || prev.cameraTarget,
+            }));
+
+            showSnackbar(`Imported ${validatedShapes.length} objects from scene`, 'success');
+          } else {
+            showSnackbar('No valid shapes found in scene file', 'warning');
+          }
+        }
+
+        // Import light settings if available
+        if (importedLightSettings && typeof importedLightSettings === 'object') {
+          const validLightSettings: LightSettings = {
+            ambientIntensity: typeof importedLightSettings.ambientIntensity === 'number' 
+              ? importedLightSettings.ambientIntensity : lightSettings.ambientIntensity,
+            directionalIntensity: typeof importedLightSettings.directionalIntensity === 'number' 
+              ? importedLightSettings.directionalIntensity : lightSettings.directionalIntensity,
+            pointLightIntensity: typeof importedLightSettings.pointLightIntensity === 'number' 
+              ? importedLightSettings.pointLightIntensity : lightSettings.pointLightIntensity,
+            pointLightPosition: Array.isArray(importedLightSettings.pointLightPosition) && 
+                               importedLightSettings.pointLightPosition.length === 3
+              ? importedLightSettings.pointLightPosition as [number, number, number]
+              : lightSettings.pointLightPosition,
+          };
+
+          setLightSettings(validLightSettings);
+        }
+
+        // Log import information
+        if (metadata) {
+          console.log('Scene imported with metadata:', metadata);
+        }
+
+        showSnackbar('Scene imported successfully!', 'success');
+      } else {
+        throw new Error('Scene data is missing or invalid');
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      showSnackbar(`Failed to import scene: ${error instanceof Error ? error.message : 'Invalid file format'}`, 'error');
+    }
+  }, [lightSettings, showSnackbar]);
+
   const handleCameraUpdate = useCallback((position: [number, number, number], target: [number, number, number]) => {
     setSceneState(prev => ({
       ...prev,
       cameraPosition: position,
       cameraTarget: target,
     }));
+  }, []);
+
+  const handleLightingChange = useCallback((settings: LightSettings) => {
+    setLightSettings(settings);
   }, []);
 
   const toggleDrawer = () => setDrawerOpen(!drawerOpen);
@@ -305,10 +472,11 @@ function App() {
             >
               <ControlPanel
                 onAddShape={handleAddShape}
-                onLightingChange={setLightSettings}
+                onLightingChange={handleLightingChange}
                 onUploadModel={handleUploadModel}
                 onExport={handleExport}
                 onScreenshot={handleScreenshot}
+                onImportScene={handleImportScene}
                 sceneState={sceneState}
                 onShapeSelect={handleShapeSelect}
                 onShapeUpdate={handleShapeUpdate}
@@ -344,10 +512,11 @@ function App() {
           </Box>
           <ControlPanel
             onAddShape={handleAddShape}
-            onLightingChange={setLightSettings}
+            onLightingChange={handleLightingChange}
             onUploadModel={handleUploadModel}
             onExport={handleExport}
             onScreenshot={handleScreenshot}
+            onImportScene={handleImportScene}
             sceneState={sceneState}
             onShapeSelect={handleShapeSelect}
             onShapeUpdate={handleShapeUpdate}

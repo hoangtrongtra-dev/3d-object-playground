@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "scene": {
+    "shapes": [
+      {
+        "id": "test-cube-1",
+        "type": "cube",
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1],
+        "color": "#ff0000"
+      },
+      {
+        "id": "test-sphere-1",
+        "type": "sphere",
+        "position": [2, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1],
+        "color": "#00ff00"
+      },
+      {
+        "id": "test-cylinder-1",
+        "type": "cylinder",
+        "position": [-2, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1],
+        "color": "#0000ff"
+      }
+    ],
+    "selectedShapeId": "test-cube-1",
+    "cameraPosition": [5, 5, 5],
+    "cameraTarget": [0, 0, 0]
+  },
+  "lightSettings": {
+    "ambientIntensity": 0.5,
+    "directionalIntensity": 0.8,
+    "pointLightIntensity": 0.6,
+    "pointLightPosition": [3, 3, 3]
+  },
+  "metadata": {
+    "totalObjects": 3,
+    "selectedObject": "test-cube-1",
+    "cameraPosition": [5, 5, 5],
+    "cameraTarget": [0, 0, 0],
+    "description": "Test scene with 3 basic shapes for import testing"
+  }
+}

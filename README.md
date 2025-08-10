@@ -15,6 +15,7 @@ A modern web application for creating, viewing, and manipulating 3D objects in r
 - **🔧 Shape Creation**: Add basic geometric shapes (cube, sphere, cone)
 - **📸 Screenshot**: Capture high-quality screenshots of your 3D scene
 - **💾 Export**: Export your scene as GLB files
+- **📥 Import Scene**: Import previously exported scene files (JSON format)
 - **🌙 Dark Theme**: Modern dark UI with Material-UI components
 - **📱 Responsive**: Works on desktop and mobile devices
 
@@ -99,6 +100,11 @@ A modern web application for creating, viewing, and manipulating 3D objects in r
    - Click the shape buttons in the control panel
    - Available shapes: Cube, Sphere, Cone
 
+3. **Scene Management**
+   - **Export Scene**: Save your current scene as a JSON file
+   - **Import Scene**: Load previously exported scene files
+   - **Clear Scene**: Remove all objects from the scene
+
 3. **Uploading Models**
    - Click "Upload 3D Model" button
    - Select GLB, GLTF, or OBJ files
@@ -172,6 +178,7 @@ Adjust camera, lighting, and environment settings in `Scene3D.tsx`:
 - **GLB** (.glb) - Binary glTF format
 - **GLTF** (.gltf) - JSON-based 3D format
 - **OBJ** (.obj) - Wavefront OBJ format
+- **JSON** (.json) - Scene configuration files
 
 ## 🤝 Contributing
 
